@@ -1,0 +1,81 @@
+---
+# vars file for cisco_ios-xe-router-ndm_stig
+stig_controls:
+  V-215836:
+    run: false
+    logging_buffer_size: 64000
+    logging_buffer_level: informational
+  V-215838:
+    run: false
+    ntp_servers:
+      - tick.usno.navy.mil
+      - tock.usno.navy.mil
+  V-215841:
+    run: false
+    group_name: V3GROUP
+    user_name: V3USER
+    auth_password: "YourSecurePasswordHere"
+    read_view: V3READ
+    write_view: V3WRITE
+    host_ip: 10.10.10.11 # IP of your SNMP Manager
+
+  # NOTE: V-215842 (SNMPv3 with encryption) supersedes V-215841 (SNMPv3 with authentication).
+  # If you set 'run: true' for V-215842, the task for V-215841 will be skipped automatically.
+  V-215842:
+    run: false
+    group_name: V3GROUP
+    user_name: V3USER
+    # NOTE: The authentication password for this user is sourced from the
+    # 'auth_password' variable in the V-215841 block above.
+    priv_protocol: aes # Can be 3des, aes, or des
+    priv_key_size: 256 # Can be 128, 192, or 256 (for aes)
+    priv_password: YourSecurePrivPassword
+    read_view: V3READ
+    write_view: V3WRITE
+    host_ip: 10.10.10.11 # IP of your SNMP Manager
+
+  # NOTE: V-215843 (Authenticated NTP) supersedes V-215838 (Unauthenticated NTP).
+  # If you set 'run: true' for V-215843, the task for V-215838 will be skipped automatically.
+  # The NTP servers are sourced from the V-215838 block.
+  V-215843:
+    run: false
+    key_id: 1
+    key_type: hmac-sha2-256
+    key_string: YourNTPAuthKeyHere
+
+  V-215854:
+    run: false
+    # A list of at least two RADIUS servers. The key is sensitive and its configuration is not idempotent.
+    radius_servers:
+      - host: 10.1.1.1 # Replace with your primary RADIUS server IP
+        auth_port: 1812
+        acct_port: 1813
+        key: your_radius_key_1 # Replace with your RADIUS key
+      - host: 10.2.2.2 # Replace with your secondary RADIUS server IP
+        auth_port: 1812
+        acct_port: 1813
+        key: your_radius_key_2 # Replace with your RADIUS key
+    login_authentication_list: LOGIN_AUTHENTICATION
+    console_authentication_list: CONSOLE
+    # A list of VTY line ranges to apply the login authentication method to.
+    vty_lines:
+      - 0 4
+      - 5 15
+  V-215855:
+    run: false
+    # The IP address of the SCP server for configuration backups.
+    scp_server_ip: 10.10.10.11
+    # The name of the EEM applet used for the backup process.
+    applet_name: BACKUP_CONFIG
+  V-215856:
+    run: false
+    # The name of the PKI trustpoint.
+    pki_trustpoint_name: CA_X
+    # The URL for certificate enrollment.
+    pki_enrollment_url: 'http://trustpoint1.example.com'
+  V-220139:
+    run: false
+    # A list of syslog servers to send logs to. At least two are required by the STIG.
+    syslog_servers:
+      - 10.10.10.12
+      - 10.10.10.13

@@ -1,0 +1,782 @@
+---
+# tasks file for cisco_ios-xe_router_ndm_stig
+- name: SRG-APP-000001-NDM-000200 | V-215807 | Configure maximum concurrent HTTP/HTTPS connections
+  cisco.ios.ios_config:
+    lines:
+      - ip http max-connections 2
+  tags:
+    - SRG-APP-000001-NDM-000200
+    - V-215807
+    - CCI-000054
+    - AC-10
+
+- name: SRG-APP-000001-NDM-000200 | V-215807 | Configure VTY lines for SSH and limit sessions
+  cisco.ios.ios_config:
+    lines:
+      - transport input ssh
+    parents: line vty 0 1
+  tags:
+    - SRG-APP-000001-NDM-000200
+    - V-215807
+    - CCI-000054
+    - AC-10
+
+- name: SRG-APP-000001-NDM-000200 | V-215807 | Disable unused VTY lines
+  cisco.ios.ios_config:
+    lines:
+      - transport input none
+    parents: line vty 2 4
+  tags:
+    - SRG-APP-000001-NDM-000200
+    - V-215807
+    - CCI-000054
+    - AC-10
+
+- name: >
+    CISC-ND-000090/CISC-ND-000100/CISC-ND-000110/CISC-ND-000120/CISC-ND-000210/CISC-ND-000330/CISC-ND-000880/CISC-ND-001250/CISC-ND-001270 |
+    V-215808/V-215809/V-215810/V-215811/V-215815/V-215819/V-215834/V-215848/V-215850 |
+    Configure router to automatically audit
+  cisco.ios.ios_config:
+    lines:
+      - logging enable
+    parents:
+      - archive
+      - log config
+  tags:
+    - CISC-ND-000090
+    - CISC-ND-000100
+    - CISC-ND-000110
+    - CISC-ND-000120
+    - CISC-ND-000210
+    - CISC-ND-000330
+    - CISC-ND-000880
+    - CISC-ND-001250
+    - CISC-ND-001270
+    - V-215808
+    - V-215809
+    - V-215810
+    - V-215811
+    - V-215815
+    - V-215819
+    - V-215834
+    - V-215848
+    - V-215850
+    - SV-215808r960777_rule
+    - SV-215809r960780_rule
+    - SV-215810r960783_rule
+    - SV-215811r960786_rule
+    - SV-215815r960864_rule
+    - SV-215819r960909_rule
+    - SV-215834r961290_rule
+    - SV-215848r961812_rule
+    - SV-215850r961827_rule
+    - CAT-II
+    - CCI-000018
+    - CCI-001403
+    - CCI-001404
+    - CCI-001405
+    - CCI-000166
+    - CCI-000135
+    - CCI-002130
+    - CCI-000172
+    - AC-2
+    - AU-10
+    - AU-3
+    - NIST-AU-12_c
+
+- name: CISC-ND-000150 | V-215813 | Configure login block for invalid attempts
+  cisco.ios.ios_config:
+    lines:
+      - login block-for 900 attempts 3 within 120
+  tags:
+    - CISC-ND-000150
+    - V-215813
+    - SV-215813r960840_rule
+    - CAT-II
+    - CCI-000044
+    - AC-7
+
+- name: CISC-ND-000160 | V-215814 | Configure DoD Notice and Consent Banner
+  cisco.ios.ios_banner:
+    banner: login
+    text: "{{ banner }}"
+    state: present
+  tags:
+    - CISC-ND-000160
+    - V-215814
+    - SV-215814r960843_rule
+    - CAT-II
+    - CCI-000048
+    - AC-8
+
+- name: CISC-ND-000210 | V-215815 | Configure logging userinfo for administrator activity
+  cisco.ios.ios_config:
+    lines:
+      - logging userinfo
+  tags:
+    - CISC-ND-000210
+    - V-215815
+    - SV-215815r960864_rule
+    - CAT-II
+    - CCI-000166
+    - AU-10
+
+- name: CISC-ND-000280 | V-215817 | Configure log timestamps with date, time, and local time
+  cisco.ios.ios_config:
+    lines:
+      - service timestamps log datetime localtime
+  tags:
+    - CISC-ND-000280
+    - V-215817
+    - SV-215817r960894_rule
+    - CAT-II
+    - CCI-000131
+    - AU-3
+
+- name: CISC-ND-000290 | V-215818 | Perform smart check for missing 'log-input' in ACLs
+  tags:
+    - V-215818
+    - SV-215818r960897_rule
+    - CISC-ND-000290
+    - CAT II
+    - CCI-000132
+    - AU-3
+  block:
+    - name: V-215818 | GATHER | Get running configuration
+      cisco.ios.ios_command:
+        commands: "show running-config"
+      register: running_config
+      changed_when: false
+
+    - name: V-215818 | PROCESS | Find ACLs with deny statements missing 'log-input'
+      ansible.builtin.set_fact:
+        non_compliant_acls: >
+          {% set acls = [] %}
+          {% set current_acl = '' %}
+          {% for line in running_config.stdout[0].split('\n') %}
+            {% if line.startswith('ip access-list extended') %}
+              {% set current_acl = line.split()[-1] %}
+            {% endif %}
+            {% if ' deny ' in line and 'log-input' not in line and current_acl != '' %}
+              {% if current_acl not in acls %}
+                {% set _ = acls.append(current_acl) %}
+              {% endif %}
+            {% endif %}
+            {% if line | trim != '' and not line.startswith(' ') and not line.startswith('ip access-list extended') %}
+              {% set current_acl = '' %}
+            {% endif %}
+          {% endfor %}
+          {{ acls }}
+
+    - name: V-215818 | REPORT | Display non-compliant ACLs
+      ansible.builtin.debug:
+        msg:
+          - "STIG V-215818 requires 'deny' statements in interface-bound ACLs to use the 'log-input' parameter."
+          - "This cannot be safely automated without knowledge of the network environment."
+          - "Please manually review your ACLs and apply the 'log-input' parameter where appropriate."
+          - ""
+          - "MANUAL CHECK COMMAND:"
+          - "show running-config | include ip access-list"
+          - ""
+          - "EXAMPLE FIX on a specific ACL entry:"
+          - "R1(config)# ip access-list extended <ACL_NAME>"
+          - "R1(config-ext-nacl)# <original deny statement> log-input"
+      when: non_compliant_acls | length > 0
+
+- name: CISC-ND-000380 | V-215820 | Ensure file system access is restricted based on logging status
+  tags:
+    - CISC-ND-000380
+    - CISC-ND-000390
+    - V-215820
+    - V-215821
+    - SV-215820r960933_rule
+    - SV-215821r960936_rule
+    - CAT-II
+    - CCI-000163
+    - CCI-000164
+    - AU-9
+    - NIST-AU-9_a
+  block:
+    - name: V-215820 | GATHER | Check if persistent logging is enabled
+      cisco.ios.ios_command:
+        commands:
+          - "show running-config | include logging persistent"
+      register: persistent_logging_check
+      changed_when: false
+      check_mode: false
+
+    - name: V-215821 | GATHER | Check file privilege configuration
+      cisco.ios.ios_command:
+        commands:
+          - "show running-config | include ^file privilege"
+      register: file_privilege_check_for_215821
+      changed_when: false
+      check_mode: false
+
+    - name: V-215821 | CONFIGURE | Ensure file system access is restricted to privilege level 15
+      cisco.ios.ios_config:
+        lines:
+          - "file privilege 15"
+      when:
+        - persistent_logging_check.stdout[0] | length > 0
+        - file_privilege_check_for_215821.stdout[0] | length > 0
+        - "'file privilege 15' not in file_privilege_check_for_215821.stdout[0]"
+
+- name: CISC-ND-000460 | V-215822 | Ensure file system access privilege is not 0
+  tags:
+    - V-215822
+    - SV-215822r960960_rule
+    - CISC-ND-000460
+    - CATII
+    - CCI-001499
+    - NIST-CM-5_6
+  block:
+    - name: V-215822 | GATHER | Check file privilege configuration
+      cisco.ios.ios_command:
+        commands:
+          - "show running-config | include ^file privilege"
+      register: file_privilege_check_for_215822
+      changed_when: false
+      check_mode: false
+
+    - name: V-215822 | CONFIGURE | Ensure file system access is restricted to privilege level 15
+      cisco.ios.ios_config:
+        lines:
+          - "file privilege 15"
+      when:
+        - file_privilege_check_for_215822.stdout[0] | length > 0
+        - "'file privilege 15' not in file_privilege_check_for_215822.stdout[0]"
+
+- name: CISC-ND-000470 | V-215823 | Disable unnecessary and nonsecure services
+  tags:
+    - V-215823
+    - SV-215823r1043177_rule
+    - CISC-ND-000470
+    - CAT I
+    - CCI-000382
+    - CM-7
+  block:
+    - name: V-215823 | GATHER | Get running configuration
+      cisco.ios.ios_command:
+        commands: "show running-config"
+      register: running_config
+      changed_when: false
+
+    - name: V-215823 | CONFIGURE | Disable services
+      cisco.ios.ios_config:
+        lines:
+          - "no {{ item }}"
+      with_items:
+        - boot network
+        - ip boot server
+        - ip bootp server
+        - ip dns server
+        - ip identd
+        - ip finger
+        - ip http server
+        - ip rcmd rcp-enable
+        - ip rcmd rsh-enable
+        - service config
+        - service finger
+        - service tcp-small-servers
+        - service udp-small-servers
+        - service pad
+        - service call-home
+      when: item in running_config.stdout[0]
+      ignore_errors: true
+
+- name: CISC-ND-000550 | V-215826 | Configure common criteria password policies
+  tags:
+    - V-215826
+    - SV-215826r1015288_rule
+    - CISC-ND-000550
+    - CATII
+    - CCI-000205
+    - NIST-IA-5_1_a
+  block:
+    - name: V-215826 | CONFIGURE | Ensure 'aaa new-model' is enabled
+      cisco.ios.ios_config:
+        lines:
+          - aaa new-model
+
+    - name: V-215826 | CONFIGURE | Enforce a minimum 15-character password length
+      cisco.ios.ios_config:
+        parents: aaa common-criteria policy PASSWORD_POLICY
+        lines:
+          - min-length 15
+        match: line
+
+- name: CISC-ND-000570 | V-215827 | Enforce at least one uppercase character in passwords
+  cisco.ios.ios_config:
+    parents: aaa common-criteria policy PASSWORD_POLICY
+    lines:
+      - upper-case 1
+    match: line
+  tags:
+    - V-215827
+    - SV-215827r1015289_rule
+    - CISC-ND-000570
+    - CATII
+    - CCI-004066
+    - CCI-000192
+    - NIST-IA-5_1_h
+
+- name: CISC-ND-000580 | V-215828 | Enforce at least one lowercase character in passwords
+  cisco.ios.ios_config:
+    parents: aaa common-criteria policy PASSWORD_POLICY
+    lines:
+      - lower-case 1
+    match: line
+  tags:
+    - V-215828
+    - SV-215828r1015290_rule
+    - CISC-ND-000580
+    - CATII
+    - CCI-004066
+    - CCI-000193
+    - NIST-IA-5_1_h
+    - NIST-IA-5_1_a
+
+- name: CISC-ND-000590 | V-215829 | Enforce at least one numeric character in passwords
+  cisco.ios.ios_config:
+    parents: aaa common-criteria policy PASSWORD_POLICY
+    lines:
+      - numeric-count 1
+    match: line
+  tags:
+    - V-215829
+    - SV-215829r1015291_rule
+    - CISC-ND-000590
+    - CATII
+    - CCI-004066
+    - CCI-000194
+    - NIST-IA-5_1_h
+    - NIST-IA-5_1_a
+
+- name: CISC-ND-000600 | V-215830 | Enforce at least one special character in passwords
+  cisco.ios.ios_config:
+    parents: aaa common-criteria policy PASSWORD_POLICY
+    lines:
+      - special-case 1
+    match: line
+  tags:
+    - V-215830
+    - SV-215830r1015292_rule
+    - CISC-ND-000600
+    - CATII
+    - CCI-004066
+    - CCI-001619
+    - NIST-IA-5_1_h
+    - NIST-IA-5_1_a
+
+- name: CISC-ND-000610 | V-215831 | Enforce at least eight changed characters for new passwords
+  cisco.ios.ios_config:
+    parents: aaa common-criteria policy PASSWORD_POLICY
+    lines:
+      - char-changes 8
+    match: line
+  tags:
+    - V-215831
+    - SV-215831r1043189_rule
+    - CISC-ND-000610
+    - CATII
+    - CCI-004066
+    - CCI-000195
+    - NIST-IA-5_1_h
+    - NIST-IA-5_1_b
+
+- name: CISC-ND-000620 | V-215832 | Enable service password-encryption
+  cisco.ios.ios_service:
+    config:
+      password_encryption: true
+  tags:
+    - V-215832
+    - SV-215832r1015294_rule
+    - CISC-ND-000620
+    - CATI
+    - CCI-004062
+    - CCI-004910
+    - CCI-000196
+    - NIST-IA-5_1_d
+    - NIST-SC-28_3
+    - NIST-IA-5_1_c
+
+- name: CISC-ND-000720 | V-215833 | Configure session timeouts
+  tags:
+    - V-215833
+    - SV-215833r961068_rule
+    - CISC-ND-000720
+    - CAT I
+    - CCI-001133
+    - SC-10
+  block:
+    - name: V-215833 | GATHER | Check HTTP timeout policy
+      cisco.ios.ios_command:
+        commands: "show running-config | include ip http timeout-policy"
+      register: http_timeout_check
+      changed_when: false
+
+    - name: V-215833 | CONFIGURE | Set HTTP idle timeout to 5 minutes
+      cisco.ios.ios_config:
+        lines:
+          - "ip http timeout-policy idle 300 life 86400 requests 10000"
+      when: http_timeout_check.stdout[0] is not search('idle 300')
+
+    - name: V-215833 | CONFIGURE | Set console line idle timeout to 5 minutes
+      cisco.ios.ios_config:
+        parents: line con 0
+        lines:
+          - "exec-timeout 5 0"
+
+    - name: V-215833 | CONFIGURE | Set VTY line idle timeout to 5 minutes
+      cisco.ios.ios_config:
+        parents: line vty 0 1
+        lines:
+          - "exec-timeout 5 0"
+
+- name: CISC-ND-000980 | V-215836 | Configure logging buffer size
+  cisco.ios.ios_config:
+    lines:
+      - "logging buffered {{ stig_controls['V-215836'].logging_buffer_size }} {{ stig_controls['V-215836'].logging_buffer_level }}"
+  when: stig_controls['V-215836'].run | default(false)
+  tags:
+    - V-215836
+    - SV-215836r961392_rule
+    - CISC-ND-000980
+    - CAT II
+    - CCI-001849
+    - AU-4
+
+- name: CISC-ND-001000 | V-215837 | Generate an alert for all audit failure events
+  cisco.ios.ios_config:
+    lines:
+      - logging trap critical
+  tags:
+    - V-215837
+    - SV-215837r991886_rule
+    - CISC-ND-001000
+    - CCI-001858
+    - CCI-003831
+    - AU-5 (2)
+    - AU-9 b
+
+- name: CISC-ND-001030 | V-215838 | Synchronize clock with redundant authoritative time sources (unauthenticated)
+  cisco.ios.ios_config:
+    lines:
+      - "ntp server {{ item }}"
+  with_items: "{{ stig_controls['V-215838'].ntp_servers }}"
+  when:
+    - stig_controls['V-215838'].run | default(false)
+    - not (stig_controls['V-215843'] is defined and stig_controls['V-215843'].run | default(false))
+  tags:
+    - V-215838
+    - SV-215838r1015295_rule
+    - CISC-ND-001030
+    - CAT II
+    - CCI-001889
+    - CCI-001890
+    - CCI-004928
+    - CCI-004922
+    - CCI-004923
+    - CCI-001893
+    - AU-8
+    - SC-45
+
+- name: CISC-ND-001150 | V-215843 | Authenticate NTP sources with cryptographically-based authentication (NOT IDEMPOTENT)
+  when: stig_controls['V-215843'].run | default(false)
+  tags:
+    - V-215843
+    - SV-215843r1050862_rule
+    - CISC-ND-001150
+    - CAT II
+    - CCI-001967
+    - IA-3 (1)
+  block:
+    - name: V-215843 | Configure NTP authentication key (NOT IDEMPOTENT)
+      cisco.ios.ios_config:
+        lines:
+          - "ntp authentication-key {{ stig_controls['V-215843'].key_id }} {{ stig_controls['V-215843'].key_type }} {{ stig_controls['V-215843'].key_string }}"
+      no_log: true
+
+    - name: V-215843 | Enable NTP authentication and set trusted key
+      cisco.ios.ios_config:
+        lines:
+          - ntp authenticate
+          - "ntp trusted-key {{ stig_controls['V-215843'].key_id }}"
+
+    - name: V-215843 | Configure NTP servers with authentication key
+      cisco.ios.ios_config:
+        lines:
+          - "ntp server {{ item }} key {{ stig_controls['V-215843'].key_id }}"
+      with_items: "{{ stig_controls['V-215838'].ntp_servers }}"
+
+- name: CISC-ND-001130 | V-215841 | Configure SNMPv3 with FIPS-validated HMAC (auth) (NOT IDEMPOTENT)
+  cisco.ios.ios_snmp_server:
+    config:
+      groups:
+        - group: "{{ stig_controls['V-215841'].group_name }}"
+          version: v3
+          version_option: auth
+          read: "{{ stig_controls['V-215841'].read_view }}"
+          write: "{{ stig_controls['V-215841'].write_view }}"
+      users:
+        - username: "{{ stig_controls['V-215841'].user_name }}"
+          version: v3
+          group: "{{ stig_controls['V-215841'].group_name }}"
+          authentication:
+            algorithm: sha
+            password: "{{ stig_controls['V-215841'].auth_password }}"
+      views:
+        - name: "{{ stig_controls['V-215841'].read_view }}"
+          family_name: iso
+          included: true
+        - name: "{{ stig_controls['V-215841'].write_view }}"
+          family_name: iso
+          included: true
+      hosts:
+        - host: "{{ stig_controls['V-215841'].host_ip }}"
+          version: 3
+          version_option: auth
+          community_string: "{{ stig_controls['V-215841'].user_name }}"
+    state: merged
+  no_log: true
+  when:
+    - stig_controls['V-215841'].run | default(false)
+    - not (stig_controls['V-215842'] is defined and stig_controls['V-215842'].run | default(false))
+  tags:
+    - V-215841
+    - SV-215841r-961506_rule
+    - CISC-ND-001130
+    - CAT II
+    - CCI-001967
+    - IA-3 (1)
+
+- name: CISC-ND-001140 | V-215842 | Configure SNMPv3 with FIPS-validated encryption (priv) (NOT IDEMPOTENT)
+  cisco.ios.ios_snmp_server:
+    config:
+      groups:
+        - group: "{{ stig_controls['V-215842'].group_name }}"
+          version: v3
+          version_option: priv
+          read: "{{ stig_controls['V-215842'].read_view }}"
+          write: "{{ stig_controls['V-215842'].write_view }}"
+      users:
+        - username: "{{ stig_controls['V-215842'].user_name }}"
+          version: v3
+          group: "{{ stig_controls['V-215842'].group_name }}"
+          authentication:
+            algorithm: sha
+            password: "{{ stig_controls['V-215841'].auth_password }}"
+          encryption:
+            priv: "{{ stig_controls['V-215842'].priv_protocol }}"
+            priv_option: "{{ stig_controls['V-215842'].priv_key_size }}"
+            password: "{{ stig_controls['V-215842'].priv_password }}"
+      views:
+        - name: "{{ stig_controls['V-215842'].read_view }}"
+          family_name: iso
+          included: true
+        - name: "{{ stig_controls['V-215842'].write_view }}"
+          family_name: iso
+          included: true
+      hosts:
+        - host: "{{ stig_controls['V-215842'].host_ip }}"
+          version: 3
+          version_option: priv
+          community_string: "{{ stig_controls['V-215842'].user_name }}"
+    state: merged
+  no_log: true
+  when: stig_controls['V-215842'].run | default(false)
+  tags:
+    - V-215842
+    - SV-215842r961506_rule
+    - CISC-ND-001140
+    - CAT II
+    - CCI-000068
+    - AC-17 (2)
+
+- name: CISC-ND-001200 | V-215844 | Enforce approved SSH version and algorithms
+  tags:
+    - V-215844
+    - SV-215844r961554_rule
+    - CISC-ND-001200
+    - CATI
+    - CCI-002890
+    - CCI-001941
+    - NIST-MA-4_6
+    - NIST-IA-2_8
+  block:
+    - name: V-215844 | GATHER | Check active SSH version
+      cisco.ios.ios_command:
+        commands: show ip ssh
+      register: ssh_status
+      changed_when: false
+      check_mode: false
+
+    - name: V-215844 | CONFIGURE | Enforce SSH Version 2
+      cisco.ios.ios_config:
+        lines:
+          - ip ssh version 2
+      when: "'version 2' not in ssh_status.stdout[0]"
+
+    - name: V-215844 | CONFIGURE | Configure SSH server to use FIPS-validated HMAC
+      cisco.ios.ios_config:
+        lines:
+          - ip ssh server algorithm mac hmac-sha2-256
+
+- name: CISC-ND-001210 | V-215845 | Configure SSH server encryption algorithms
+  cisco.ios.ios_config:
+    lines:
+      - ip ssh server algorithm encryption aes256-ctr aes192-ctr aes128-ctr
+  tags:
+    - V-215845
+    - SV-215845r961557_rule
+    - CISC-ND-001210
+    - CATI
+    - CCI-003123
+    - NIST-MA-4_6
+
+- name: CISC-ND-001260 | V-215849 | Enable logging for successful and failed logins
+  cisco.ios.ios_config:
+    lines:
+      - login on-success log
+      - login on-failure log
+  tags:
+    - V-215849
+    - SV-215849r961824_rule
+    - CISC-ND-001260
+    - CATII
+    - CCI-000172
+    - NIST-AU-12_c
+
+- name: CISC-ND-001370 | V-215854 | Use at least two authentication servers for administrative access
+  when: stig_controls['V-215854'].run | default(false)
+  tags:
+    - V-215854
+    - SV-215854r961863_rule
+    - CISC-ND-001370
+    - CAT I
+    - CCI-000370
+    - NIST-800-53-CM-6(1)
+  block:
+    - name: V-215854 | Verify at least two RADIUS servers are defined
+      ansible.builtin.assert:
+        that:
+          - "stig_controls['V-215854'].radius_servers is defined"
+          - "stig_controls['V-215854'].radius_servers | length >= 2"
+        fail_msg: "V-215854 requires at least two RADIUS servers to be defined in vars/main.yml"
+        success_msg: "V-215854 has at least two RADIUS servers defined."
+
+    - name: V-215854 | Enable AAA new-model
+      cisco.ios.ios_config:
+        lines:
+          - aaa new-model
+
+    - name: V-215854 | Configure RADIUS servers (NOT IDEMPOTENT)
+      cisco.ios.ios_config:
+        parents: "radius server {{ item.host }}"
+        lines:
+          - "address ipv4 {{ item.host }} auth-port {{ item.auth_port | default(1812) }} acct-port {{ item.acct_port | default(1813) }}"
+          - "key {{ item.key }}"
+      with_items: "{{ stig_controls['V-215854'].radius_servers }}"
+      no_log: true
+
+    - name: V-215854 | Configure AAA login authentication list for remote access
+      cisco.ios.ios_config:
+        lines:
+          - "aaa authentication login {{ stig_controls['V-215854'].login_authentication_list }} group radius local"
+
+    - name: V-215854 | Configure AAA login authentication list for console access
+      cisco.ios.ios_config:
+        lines:
+          - "aaa authentication login {{ stig_controls['V-215854'].console_authentication_list }} local"
+
+    - name: V-215854 | Apply login authentication to VTY lines (NOT IDEMPOTENT)
+      cisco.ios.ios_config:
+        parents: "line vty {{ item }}"
+        lines:
+          - "login authentication {{ stig_controls['V-215854'].login_authentication_list }}"
+      with_items: "{{ stig_controls['V-215854'].vty_lines }}"
+
+    - name: V-215854 | Apply login authentication to console line
+      cisco.ios.ios_config:
+        parents: "line con 0"
+        lines:
+          - "login authentication {{ stig_controls['V-215854'].console_authentication_list }}"
+
+    - name: V-215854 | Apply login authentication to HTTP server
+      cisco.ios.ios_config:
+        lines:
+          - "ip http authentication aaa login-authentication {{ stig_controls['V-215854'].login_authentication_list }}"
+
+- name: CISC-ND-001410 | V-215855 | Back up configuration when changes occur
+  cisco.ios.ios_config:
+    parents: "event manager applet {{ stig_controls['V-215855'].applet_name }}"
+    lines:
+      - 'event syslog pattern "%SYS-5-CONFIG_I"'
+      - 'action 1.0 info type routername'
+      - 'action 2.0 cli command "enable"'
+      - 'action 3.0 cli command "copy running-config scp:" pattern "Address or name of remote host"'
+      - "action 4.0 cli command \"{{ stig_controls['V-215855'].scp_server_ip }}\" pattern \"Destination filename\""
+      - 'action 5.0 cli command "$_info_routername-config"'
+      - 'action 6.0 syslog priority informational msg "Configuration backup was executed"'
+  when: stig_controls['V-215855'].run | default(false)
+  tags:
+    - V-215855
+    - SV-215855r1069501_rule
+    - CISC-ND-001410
+    - CAT II
+    - CCI-000366
+    - CCI-000537
+    - NIST-800-53-CM-6_b
+    - NIST-800-53-CP-9_b
+
+- name: CISC-ND-001440 | V-215856 | Configure PKI trustpoint
+  when: stig_controls['V-215856'].run | default(false)
+  tags:
+    - V-215856
+    - SV-215856r991889_rule
+    - CISC-ND-001440
+    - CAT II
+    - CCI-001159
+    - CCI-004909
+    - NIST-800-53-SC-17
+    - NIST-800-53-SC-17_a
+    - NIST-800-53-SC-17_b
+  block:
+    - name: V-215856 | GATHER | Check for existing trustpoint configuration
+      cisco.ios.ios_command:
+        commands: "show running-config | include enrollment url"
+      register: pki_enrollment_check
+      changed_when: false
+      check_mode: false
+
+    - name: V-215856 | CONFIGURE | Obtain public key certificates from an approved CA
+      cisco.ios.ios_config:
+        parents: "crypto pki trustpoint {{ stig_controls['V-215856'].pki_trustpoint_name }}"
+        lines:
+          - "enrollment url {{ stig_controls['V-215856'].pki_enrollment_url }}"
+      when: "stig_controls['V-215856'].pki_enrollment_url not in pki_enrollment_check.stdout[0]"
+
+- name: CISC-ND-001450 | V-220139 | Send log data to at least two syslog servers
+  when: stig_controls['V-220139'].run | default(false)
+  tags:
+    - V-220139
+    - SV-220139r961863_rule
+    - CISC-ND-001450
+    - CAT I
+    - CCI-001851
+    - NIST-800-53-AU-4_1
+  block:
+    - name: V-220139 | Verify at least two syslog servers are defined
+      ansible.builtin.assert:
+        that:
+          - "stig_controls['V-220139'].syslog_servers is defined"
+          - "stig_controls['V-220139'].syslog_servers | length >= 2"
+        fail_msg: "V-220139 requires at least two syslog servers to be defined in vars/main.yml"
+        success_msg: "V-220139 has at least two syslog servers defined."
+
+    - name: V-220139 | Configure logging to syslog servers
+      cisco.ios.ios_config:
+        lines:
+          - "logging host {{ item }}"
+      with_items: "{{ stig_controls['V-220139'].syslog_servers }}"
