@@ -1,0 +1,7 @@
+test.yml
+inventory
+ansible.cfg
+.ansible
+.vscode
+cisco_ios-xe_router_ndm_stig.ckl
+.DS_Store
