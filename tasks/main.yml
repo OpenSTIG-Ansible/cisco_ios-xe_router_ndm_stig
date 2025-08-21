@@ -430,7 +430,7 @@
 
     - name: V-215833 | CONFIGURE | Set VTY line idle timeout to 5 minutes
       cisco.ios.ios_config:
-        parents: line vty 0 1
+        parents: line vty 0 20
         lines:
           - "exec-timeout 5 0"
 
